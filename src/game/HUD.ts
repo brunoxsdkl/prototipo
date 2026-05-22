@@ -1,5 +1,15 @@
 import { GameState } from './types'
 
+const lotoGames = [
+  { name: 'JOGO 1', nums: '01 - 04 - 05 - 08 - 10 - 11 - 13 - 15 - 17 - 18 - 19 - 21 - 22 - 24 - 25' },
+  { name: 'JOGO 2', nums: '02 - 05 - 06 - 07 - 09 - 10 - 12 - 14 - 16 - 18 - 19 - 20 - 21 - 23 - 24' },
+  { name: 'JOGO 3', nums: '01 - 03 - 05 - 07 - 08 - 11 - 12 - 13 - 14 - 17 - 20 - 21 - 22 - 24 - 25' },
+  { name: 'JOGO 4', nums: '01 - 02 - 04 - 05 - 09 - 10 - 11 - 13 - 15 - 16 - 17 - 19 - 22 - 23 - 25' },
+  { name: 'JOGO 5', nums: '02 - 03 - 05 - 06 - 09 - 11 - 12 - 14 - 15 - 17 - 19 - 20 - 22 - 24 - 25' },
+  { name: 'JOGO 6', nums: '01 - 04 - 07 - 08 - 10 - 12 - 13 - 14 - 16 - 18 - 20 - 21 - 23 - 24 - 25' },
+  { name: 'JOGO 7', nums: '03 - 04 - 05 - 06 - 09 - 10 - 11 - 14 - 15 - 18 - 19 - 20 - 22 - 23 - 24' },
+]
+
 export class HUD {
   private container: HTMLDivElement
 
@@ -37,7 +47,19 @@ export class HUD {
           <h1>FORMULA RACING</h1>
           <p class="subtitle">3D</p>
           <button id="btn-start" class="menu-btn">JOGAR</button>
-          <p class="hint">WASD / Setas · Celular: botões touch</p>
+          <div class="loto-section">
+            <h3>🎯 LOTOFÁCIL — JOGOS RECOMENDADOS</h3>
+            <p class="loto-date">Gerados em 22/05/2026</p>
+            <div class="loto-grid">
+              ${lotoGames.map((g, i) => `
+                <div class="loto-card ${i < 5 ? '' : 'bonus'}">
+                  <div class="loto-name">${g.name}</div>
+                  <div class="loto-nums">${g.nums}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          <p class="hint">WASD / Setas · Celular: botões touch · ESC: pausar</p>
         </div>
       </div>
 

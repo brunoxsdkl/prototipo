@@ -8,15 +8,18 @@ export interface CarConfig {
   turnSpeed: number
   drag: number
   driftFactor: number
+  turnSpeedLoss: number
 }
 
 export class Car {
   public mesh: THREE.Group
   public speed = 0
   public config: CarConfig
+  public isDrifting = false
+  public driftIntensity = 0
 
-  private velocity = new THREE.Vector3()
   private rotationAngle = 0
+  private wheelMeshes: THREE.Mesh[] = []
 
   constructor(config: Partial<CarConfig> = {}) {
     this.config = {
@@ -26,20 +29,19 @@ export class Car {
       turnSpeed: config.turnSpeed ?? 2.2,
       drag: config.drag ?? 0.97,
       driftFactor: config.driftFactor ?? 0.85,
+      turnSpeedLoss: config.turnSpeedLoss ?? 0.92,
     }
     this.mesh = this.buildCar()
   }
 
   private buildCar(): THREE.Group {
     const group = new THREE.Group()
-
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0xe02020, metalness: 0.6, roughness: 0.3 })
     const accentMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.3, roughness: 0.7 })
     const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 })
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.35, 4.2), bodyMat)
     body.position.y = 0.35
-    body.position.z = 0
     group.add(body)
 
     const cockpit = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.4, 1.8), accentMat)
@@ -54,11 +56,9 @@ export class Car {
     const rearWing = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.05, 0.6), accentMat)
     rearWing.position.set(0, 0.7, -2.2)
     group.add(rearWing)
-
     const rearWingUp = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.3, 0.1), accentMat)
     rearWingUp.position.set(0, 1.0, -2.3)
     group.add(rearWingUp)
-
     const frontWing = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.05, 0.4), accentMat)
     frontWing.position.set(0, 0.2, 2.2)
     group.add(frontWing)
@@ -72,12 +72,16 @@ export class Car {
       wheel.rotation.z = Math.PI / 2
       wheel.position.set(pos[0], pos[1], pos[2])
       group.add(wheel)
+      this.wheelMeshes.push(wheel)
     }
 
     return group
   }
 
   update(dt: number, input: InputState): void {
+    const isTurning = input.left || input.right
+    const speedRatio = Math.abs(this.speed) / this.config.maxSpeed
+
     if (input.accelerate) {
       this.speed = Math.min(this.speed + this.config.acceleration * dt, this.config.maxSpeed)
     } else if (input.brake) {
@@ -87,9 +91,11 @@ export class Car {
       if (Math.abs(this.speed) < 0.1) this.speed = 0
     }
 
-    const speedRatio = Math.abs(this.speed) / this.config.maxSpeed
-    const turnFactor = Math.max(0.1, 1 - speedRatio * 0.3)
+    if (isTurning && speedRatio > 0.3) {
+      this.speed *= this.config.turnSpeedLoss
+    }
 
+    const turnFactor = Math.max(0.1, 1 - speedRatio * 0.35)
     if (input.left) {
       this.rotationAngle += this.config.turnSpeed * turnFactor * dt * Math.sign(this.speed || 1)
     }
@@ -102,17 +108,23 @@ export class Car {
     const forward = new THREE.Vector3(0, 0, -1)
     forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.rotationAngle)
 
-    const driftFactor = speedRatio > 0.6 ? this.config.driftFactor : 1
-    const moveSpeed = this.speed * dt * driftFactor
+    this.isDrifting = isTurning && speedRatio > 0.5
+    this.driftIntensity = this.isDrifting ? Math.min(1, (speedRatio - 0.5) * 2) : 0
+    const driftFactor = this.isDrifting ? THREE.MathUtils.lerp(1, this.config.driftFactor, this.driftIntensity) : 1
 
+    const moveSpeed = this.speed * dt * driftFactor
     this.mesh.position.x += forward.x * moveSpeed
     this.mesh.position.z += forward.z * moveSpeed
 
-    const tilt = (input.left ? 1 : input.right ? -1 : 0) * speedRatio * 0.08
-    this.mesh.rotation.z = THREE.MathUtils.lerp(this.mesh.rotation.z, tilt, dt * 5)
+    const tiltTarget = (input.left ? 1 : input.right ? -1 : 0) * speedRatio * 0.1
+    this.mesh.rotation.z = THREE.MathUtils.lerp(this.mesh.rotation.z, tiltTarget, dt * 5)
 
     const pitch = (this.speed / this.config.maxSpeed) * 0.04
     this.mesh.rotation.x = THREE.MathUtils.lerp(this.mesh.rotation.x, pitch, dt * 3)
+
+    for (const w of this.wheelMeshes) {
+      w.rotation.x += this.speed * dt * 3
+    }
   }
 
   getForward(): THREE.Vector3 {
@@ -121,9 +133,15 @@ export class Car {
     return forward
   }
 
+  getSpeedKmh(): number {
+    return Math.abs(this.speed * 3.6)
+  }
+
   reset(position: THREE.Vector3, rotation: number): void {
     this.speed = 0
     this.rotationAngle = rotation
+    this.isDrifting = false
+    this.driftIntensity = 0
     this.mesh.position.copy(position)
     this.mesh.rotation.set(0, rotation, 0)
   }

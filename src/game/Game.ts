@@ -22,11 +22,12 @@ export class Game {
   private clock = new THREE.Clock()
   private running = false
   private rafId = 0
+  private baseFov = 65
 
   constructor(container: HTMLElement) {
     this.scene = new THREE.Scene()
 
-    this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 200)
+    this.camera = new THREE.PerspectiveCamera(this.baseFov, window.innerWidth / window.innerHeight, 0.1, 200)
     this.camera.position.set(0, 6, 10)
 
     this.renderer = new THREE.WebGLRenderer({
@@ -40,11 +41,9 @@ export class Game {
     this.renderer.toneMappingExposure = 1.2
     container.appendChild(this.renderer.domElement)
 
-    // Sky
     const skyColor = new THREE.Color(0x87CEEB)
     this.scene.background = skyColor
 
-    // Lighting
     const ambient = new THREE.AmbientLight(0xffffff, 0.5)
     this.scene.add(ambient)
 
@@ -56,39 +55,31 @@ export class Game {
     fill.position.set(-20, 10, -20)
     this.scene.add(fill)
 
-    // Fog
     this.scene.fog = new THREE.Fog(0x87CEEB, 60, 120)
 
-    // Track
     this.track = new Track()
     this.scene.add(this.track.mesh)
 
-    // Car
     this.car = new Car({ maxSpeed: 80, acceleration: 35, turnSpeed: 2.0 })
     this.car.reset(this.track.startPosition, this.track.startRotation)
     this.scene.add(this.car.mesh)
 
-    // Camera
     this.cameraFollow = new CameraFollow(this.camera, this.car.mesh)
 
-    // Input
     this.input = new Input()
     this.input.setPauseHandler(() => {
       if (this.state.phase === 'playing') this.pause()
       else if (this.state.phase === 'paused') this.resume()
     })
 
-    // HUD
     this.hud = new HUD()
     this.hud.onStart(() => this.start())
     this.hud.onResume(() => this.resume())
     this.hud.onRestart(() => this.restart())
     this.hud.onMenu(() => this.goToMenu())
 
-    // Checkpoints
     this.checkpoints = new Checkpoints(this.track, 3)
 
-    // State
     this.state = {
       phase: 'menu',
       speed: 0,
@@ -102,9 +93,7 @@ export class Game {
 
     this.hud.showMenu()
 
-    // Resize
     window.addEventListener('resize', () => this.resize())
-
     this.resize()
   }
 
@@ -122,6 +111,8 @@ export class Game {
     this.state.lapTime = 0
     this.state.currentLap = 0
     this.state.bestLapTime = Infinity
+    this.camera.fov = this.baseFov
+    this.camera.updateProjectionMatrix()
     this.car.reset(this.track.startPosition, this.track.startRotation)
     this.cameraFollow.reset()
     this.checkpoints.reset(0)
@@ -152,6 +143,8 @@ export class Game {
     this.hud.showMenu()
     this.car.reset(this.track.startPosition, this.track.startRotation)
     this.cameraFollow.reset()
+    this.camera.fov = this.baseFov
+    this.camera.updateProjectionMatrix()
   }
 
   private loop(): void {
@@ -166,7 +159,10 @@ export class Game {
       const input = this.input.getState()
       this.car.update(dt, input)
 
-      // Keep car on track
+      const speedRatio = Math.abs(this.car.speed) / this.car.config.maxSpeed
+      this.camera.fov = THREE.MathUtils.lerp(this.baseFov, this.baseFov + 12, speedRatio * 0.8)
+      this.camera.updateProjectionMatrix()
+
       const pos = this.car.mesh.position
       if (!this.track.isOnTrack(pos.x, pos.z)) {
         const idx = this.track.getClosestPointIndex(pos.x, pos.z)
