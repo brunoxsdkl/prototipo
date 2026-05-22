@@ -20,6 +20,10 @@ export class HUD {
     this.build()
   }
 
+  destroy() {
+    this.container.remove()
+  }
+
   private build(): void {
     this.container.innerHTML = `
       <div id="hud-top" class="hud-hidden">
@@ -59,6 +63,7 @@ export class HUD {
               `).join('')}
             </div>
           </div>
+          <button id="btn-hub" class="menu-btn secondary voltar-btn">← VOLTAR AO HUB</button>
           <p class="hint">WASD / Setas · Celular: botões touch · ESC: pausar</p>
         </div>
       </div>
@@ -77,6 +82,7 @@ export class HUD {
           <div id="results"></div>
           <button id="btn-restart2" class="menu-btn">REINICIAR</button>
           <button id="btn-menu" class="menu-btn secondary">MENU</button>
+          <button id="btn-hub-finish" class="menu-btn secondary voltar-btn">← VOLTAR AO HUB</button>
         </div>
       </div>
     `
@@ -157,6 +163,11 @@ export class HUD {
 
   onMenu(handler: () => void): void {
     document.getElementById('btn-menu')?.addEventListener('click', handler)
+  }
+
+  onHub(handler: () => void): void {
+    document.getElementById('btn-hub')?.addEventListener('click', handler)
+    document.getElementById('btn-hub-finish')?.addEventListener('click', handler)
   }
 
   private setVisibility(id: string, visible: boolean): void {

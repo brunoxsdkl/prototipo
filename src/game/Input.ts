@@ -65,4 +65,8 @@ export class Input {
   reset(): void {
     this.state = { accelerate: false, brake: false, left: false, right: false }
   }
+
+  destroy(): void {
+    this.reset()
+  }
 }

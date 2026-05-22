@@ -23,8 +23,13 @@ export class Game {
   private running = false
   private rafId = 0
   private baseFov = 65
+  private backToHub: () => void
+  private container: HTMLElement
 
-  constructor(container: HTMLElement) {
+  constructor(container: HTMLElement, backToHub: () => void) {
+    this.container = container
+    this.backToHub = backToHub
+
     this.scene = new THREE.Scene()
 
     this.camera = new THREE.PerspectiveCamera(this.baseFov, window.innerWidth / window.innerHeight, 0.1, 200)
@@ -77,6 +82,7 @@ export class Game {
     this.hud.onResume(() => this.resume())
     this.hud.onRestart(() => this.restart())
     this.hud.onMenu(() => this.goToMenu())
+    this.hud.onHub(() => this.dispose())
 
     this.checkpoints = new Checkpoints(this.track, 3)
 
@@ -93,10 +99,11 @@ export class Game {
 
     this.hud.showMenu()
 
-    window.addEventListener('resize', () => this.resize())
+    window.addEventListener('resize', this.resizeHandler)
     this.resize()
   }
 
+  private resizeHandler = () => this.resize()
   private resize(): void {
     const w = window.innerWidth
     const h = window.innerHeight
@@ -145,6 +152,17 @@ export class Game {
     this.cameraFollow.reset()
     this.camera.fov = this.baseFov
     this.camera.updateProjectionMatrix()
+  }
+
+  dispose(): void {
+    this.running = false
+    cancelAnimationFrame(this.rafId)
+    window.removeEventListener('resize', this.resizeHandler)
+    this.hud.destroy()
+    this.input.destroy()
+    this.renderer.dispose()
+    this.renderer.domElement.remove()
+    this.backToHub()
   }
 
   private loop(): void {
